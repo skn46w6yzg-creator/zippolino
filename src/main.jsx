@@ -3,17 +3,17 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 const menu = [
-  { id:'classic', name:'Classic Zippolino', note:'Butter, icing sugar, warm nostalgia.', price:5.5, tone:'vanilla', icon:'✦' },
-  { id:'nutella', name:'Nutella Dream', note:'Nutella, biscuit crunch, chocolate silk.', price:7.5, tone:'cocoa', icon:'N' },
-  { id:'strawberry', name:'Strawberry Kiss', note:'Fresh strawberries, chocolate, icing sugar.', price:8, tone:'berry', icon:'S' },
-  { id:'lotus', name:'Lotus Heaven', note:'Biscoff spread, biscuit crumb, caramel.', price:8, tone:'caramel', icon:'L' },
-  { id:'bueno', name:'Bueno Crunch', note:'Bueno cream, milk chocolate, crispy wafer.', price:8.5, tone:'hazel', icon:'B' },
-  { id:'pistachio', name:'Pistachio Royale', note:'Pistachio cream, nuts, white chocolate.', price:9.5, tone:'pistachio', icon:'P' },
-  { id:'oreo', name:'Oreo Explosion', note:'Oreo crumb, chocolate, vanilla cream.', price:8, tone:'oreo', icon:'O' },
-  { id:'dubai', name:'Dubai Chocolate', note:'Pistachio, crisp kunafa, chocolate.', price:10, tone:'dubai', icon:'D' }
+  { id:'classic', name:'Classic Zippolino', note:'Butter, icing sugar, warm nostalgia.', price:5, tone:'vanilla', icon:'✦' },
+  { id:'nutella', name:'Nutella Dream', note:'Nutella, biscuit crunch, chocolate silk.', price:7, tone:'cocoa', icon:'N' },
+  { id:'strawberry', name:'Strawberry Kiss', note:'Fresh strawberries, chocolate, icing sugar.', price:7.5, tone:'berry', icon:'S' },
+  { id:'lotus', name:'Lotus Heaven', note:'Biscoff spread, biscuit crumb, caramel.', price:7.5, tone:'caramel', icon:'L' },
+  { id:'bueno', name:'Bueno Crunch', note:'Bueno cream, milk chocolate, crispy wafer.', price:8, tone:'hazel', icon:'B' },
+  { id:'pistachio', name:'Pistachio Royale', note:'Pistachio cream, nuts, white chocolate.', price:9, tone:'pistachio', icon:'P' },
+  { id:'oreo', name:'Oreo Explosion', note:'Oreo crumb, chocolate, vanilla cream.', price:7.5, tone:'oreo', icon:'O' },
+  { id:'dubai', name:'Dubai Chocolate', note:'Pistachio, crisp kunafa, chocolate.', price:9.5, tone:'dubai', icon:'D' }
 ];
 const options = {
-  size:[['Regular',0],['Large',2],['Sharing box',5]],
+  size:[['8 Mini Pancakes · Mini Treat',0],['12 Mini Pancakes · Most Popular',2],['18 Mini Pancakes',5],['30 Mini Pancakes · Sharing Box',10]],
   sauce:[['As described',0],['Nutella',1],['White chocolate',1],['Pistachio',2],['Lotus Biscoff',1],['Caramel',.75]],
   extra:[['No extra',0],['Strawberries',1.5],['Banana',1],['Oreo crunch',1],['Lotus crumb',1],['Bueno pieces',1.5],['Ice cream',2],['Kunafa crunch',1.5]]
 };
