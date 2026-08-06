@@ -3,19 +3,23 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 const menu = [
-  { id:'classic', name:'Classic Zippolino', note:'Butter, icing sugar, warm nostalgia.', price:5, tone:'vanilla', icon:'✦' },
-  { id:'nutella', name:'Nutella Dream', note:'Nutella, biscuit crunch, chocolate silk.', price:7, tone:'cocoa', icon:'N' },
-  { id:'strawberry', name:'Strawberry Kiss', note:'Fresh strawberries, chocolate, icing sugar.', price:7.5, tone:'berry', icon:'S' },
-  { id:'lotus', name:'Lotus Heaven', note:'Biscoff spread, biscuit crumb, caramel.', price:7.5, tone:'caramel', icon:'L' },
-  { id:'bueno', name:'Bueno Crunch', note:'Bueno cream, milk chocolate, crispy wafer.', price:8, tone:'hazel', icon:'B' },
-  { id:'pistachio', name:'Pistachio Royale', note:'Pistachio cream, nuts, white chocolate.', price:9, tone:'pistachio', icon:'P' },
-  { id:'oreo', name:'Oreo Explosion', note:'Oreo crumb, chocolate, vanilla cream.', price:7.5, tone:'oreo', icon:'O' },
-  { id:'dubai', name:'Dubai Chocolate', note:'Pistachio, crisp kunafa, chocolate.', price:9.5, tone:'dubai', icon:'D' }
+  { id:'classic', name:'Classic Zippolino', note:'Butter & icing sugar.', price:5, tone:'vanilla', icon:'✦' },
+  { id:'nutella', name:'Nutella Dream', note:'Nutella & icing sugar.', price:7, tone:'cocoa', icon:'N' },
+  { id:'strawberry', name:'Strawberry Kiss', note:'Fresh strawberries & chocolate drizzle.', price:7.5, tone:'berry', icon:'S' },
+  { id:'lotus', name:'Lotus Heaven', note:'Lotus Biscoff spread & biscuit crumbs.', price:7.5, tone:'caramel', icon:'L' },
+  { id:'banana', name:'Banana Bliss', note:'Fresh banana & chocolate drizzle.', price:7.5, tone:'hazel', icon:'B' },
+  { id:'pistachio', name:'Pistachio Royale', note:'Premium pistachio cream & crushed pistachios.', price:9, tone:'pistachio', icon:'P' },
+  { id:'oreo', name:'Oreo Explosion', note:'Oreo crumbs & chocolate sauce.', price:7.5, tone:'oreo', icon:'O' },
+  { id:'dubai', name:'Dubai Delight', note:'Pistachio cream, crispy kunafa & chocolate drizzle.', price:9.5, tone:'dubai', icon:'D' }
 ];
+const drinks = {
+  Coffee:['Espresso','Americano','Cappuccino','Latte','Iced Latte'],
+  'Cold Drinks':['Coca-Cola','Coca-Cola Zero','Sprite','Fanta Orange','Still Water']
+};
 const options = {
-  size:[['8 Mini Pancakes · Mini Treat',0],['12 Mini Pancakes · Most Popular',2],['18 Mini Pancakes',5],['30 Mini Pancakes · Sharing Box',10]],
+  size:[['Mini Treat · 8 Mini Pancakes',0],['Regular · 12 Mini Pancakes · Most Popular',2],['Large · 18 Mini Pancakes',5],['Sharing Box · 30 Mini Pancakes',10]],
   sauce:[['As described',0],['Nutella',1],['White chocolate',1],['Pistachio',2],['Lotus Biscoff',1],['Caramel',.75]],
-  extra:[['No extra',0],['Strawberries',1.5],['Banana',1],['Oreo crunch',1],['Lotus crumb',1],['Bueno pieces',1.5],['Ice cream',2],['Kunafa crunch',1.5]]
+  extra:[['No extra',0],['Strawberries',1.5],['Banana',1],['Oreo crunch',1],['Lotus crumb',1],['Bueno pieces',1.5],['Kunafa crunch',1.5]]
 };
 const money = n => `€${n.toFixed(2)}`;
 const event = (name,data={}) => { window.dataLayer?.push({event:name,...data}); };
@@ -23,7 +27,7 @@ const event = (name,data={}) => { window.dataLayer?.push({event:name,...data}); 
 function App(){
   const [cart,setCart] = useState(()=>JSON.parse(localStorage.getItem('zippolino-cart')||'[]'));
   const [product,setProduct] = useState(null);
-  const [choice,setChoice] = useState({size:0,sauce:[],extra:[],qty:1,note:''});
+  const [choice,setChoice] = useState({size:1,sauce:[],extra:[],qty:1,note:''});
   const [cartOpen,setCartOpen] = useState(false);
   const [checkout,setCheckout] = useState(false);
   const [confirmation,setConfirmation] = useState(null);
@@ -31,7 +35,7 @@ function App(){
   useEffect(()=>{localStorage.setItem('zippolino-cart',JSON.stringify(cart));},[cart]);
   useEffect(()=>{const f=()=>setAdmin(location.hash==='#orders'); addEventListener('hashchange',f); return()=>removeEventListener('hashchange',f)},[]);
   const count=cart.reduce((a,x)=>a+x.qty,0), subtotal=cart.reduce((a,x)=>a+x.total,0);
-  const openProduct=p=>{setProduct(p);setChoice({size:0,sauce:[],extra:[],qty:1,note:''});event('view_item',{item_id:p.id});};
+  const openProduct=p=>{setProduct(p);setChoice({size:1,sauce:[],extra:[],qty:1,note:''});event('view_item',{item_id:p.id});};
   const toggleChoice=(group,index)=>setChoice(c=>({...c,[group]:index===0?[]:c[group].includes(index)?c[group].filter(i=>i!==index):[...c[group],index]}));
   const add=()=>{const size=options.size[choice.size],sauces=choice.sauce.map(i=>options.sauce[i]),extras=choice.extra.map(i=>options.extra[i]);const unit=product.price+size[1]+sauces.reduce((sum,x)=>sum+x[1],0)+extras.reduce((sum,x)=>sum+x[1],0);const item={key:crypto.randomUUID(),id:product.id,name:product.name,size:size[0],sauce:sauces.length?sauces.map(x=>x[0]).join(', '):'As described',extra:extras.length?extras.map(x=>x[0]).join(', '):'No extra',note:choice.note,qty:choice.qty,unit,total:unit*choice.qty};setCart(c=>[...c,item]);event('add_to_cart',{item_id:product.id,value:item.total});setProduct(null);setCartOpen(true)};
   const submitOrder=async e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));const order={id:`ZIP-${Date.now().toString().slice(-6)}`,createdAt:new Date().toISOString(),status:'New',items:cart,total:subtotal,customer:data};const orders=JSON.parse(localStorage.getItem('zippolino-orders')||'[]');localStorage.setItem('zippolino-orders',JSON.stringify([order,...orders]));event('purchase',{transaction_id:order.id,value:subtotal,currency:'EUR'});const api=import.meta.env.VITE_ORDER_API_URL;if(api){try{await fetch(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(order)})}catch{}}const payment=import.meta.env.VITE_PAYMENT_URL;if(payment){location.href=`${payment}?reference=${order.id}&amount=${subtotal.toFixed(2)}`;return}setConfirmation(order);setCart([]);setCheckout(false);setCartOpen(false)};
@@ -46,7 +50,8 @@ function App(){
       <section className="marquee"><div>POFFERTJES ✦ MADE FRESH ✦ SWEET MOMENTS ✦ POFFERTJES ✦ MADE FRESH ✦ SWEET MOMENTS ✦</div></section>
       <section id="menu" className="menu"><div className="section-head"><div><p className="eyebrow">THE MAIN EVENT</p><h2>Pick your pleasure.</h2></div><p>Every box starts with warm, pillowy Dutch mini pancakes, finished to order.</p></div><div className="grid">{menu.map((p,i)=><article className={`product ${p.tone}`} key={p.id} onClick={()=>openProduct(p)}><div className="food"><span>{p.icon}</span><div className="mini-stack">{Array.from({length:7},(_,j)=><i key={j}/>)}</div></div><div className="product-info"><small>0{i+1}</small><h3>{p.name}</h3><p>{p.note}</p><div><b>from {money(p.price)}</b><button aria-label={`Customise ${p.name}`}>+</button></div></div></article>)}</div>
       </section>
-      <section className="builder"><div><p className="eyebrow">YOUR RULES</p><h2>Build your own<br/><em>little masterpiece.</em></h2><p>Choose the size, the sauce and the finishing crunch. There are no wrong answers here.</p><button className="primary" onClick={()=>openProduct({id:'custom',name:'Build Your Own',note:'Your pancakes. Your rules.',price:5.5})}>Start building <span>+</span></button></div><div className="steps">{[['01','PICK A SIZE','Regular, large or sharing.'],['02','CHOOSE A SAUCE','Chocolate, pistachio, Lotus & more.'],['03','MAKE IT YOURS','Fruit, crunch and premium extras.']].map(x=><div key={x[0]}><b>{x[0]}</b><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></section>
+      <section className="builder"><div><p className="eyebrow">YOUR RULES</p><h2>Build your own<br/><em>little masterpiece.</em></h2><p>Choose the size, the sauce and the finishing crunch. There are no wrong answers here.</p><button className="primary" onClick={()=>openProduct({id:'custom',name:'Build Your Own',note:'Your pancakes. Your rules.',price:5.5})}>Start building <span>+</span></button></div><div className="steps">{[['01','PICK A SIZE','Mini Treat, Regular, Large or Sharing Box.'],['02','CHOOSE A SAUCE','Chocolate, pistachio, Lotus & more.'],['03','MAKE IT YOURS','Fruit, crunch and premium extras.']].map(x=><div key={x[0]}><b>{x[0]}</b><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></section>
+      <section className="drinks"><div><p className="eyebrow">KEEP IT SIMPLE</p><h2>Drinks.</h2></div>{Object.entries(drinks).map(([group,items])=><div className="drink-list" key={group}><h3>{group}</h3>{items.map(item=><p key={item}>{item}</p>)}</div>)}</section>
       <section id="story" className="story"><div className="story-art"><div className="gold-orb">Z</div></div><div><p className="eyebrow">A TINY DUTCH CLASSIC</p><h2>Small by nature.<br/>Unforgettable by design.</h2><p>Poffertjes are soft, airy mini pancakes with a golden edge. At ZIPPOLINO, we make every batch fresh and turn it into something joyful, generous and unmistakably ours.</p><div className="values"><span><b>01</b>Freshly cooked</span><span><b>02</b>Quality toppings</span><span><b>03</b>Made for sharing</span></div></div></section>
       <section className="how"><p className="eyebrow">THREE SIMPLE STEPS</p><h2>Tap. Top. Collect.</h2><div>{[['01','Choose','Find your favourite or build your own.'],['02','Customise','Make every box exactly yours.'],['03','Collect','We’ll prepare it fresh for pickup.']].map(x=><article key={x[0]}><b>{x[0]}</b><h3>{x[1]}</h3><p>{x[2]}</p></article>)}</div></section>
       <section id="visit" className="visit"><div><p className="eyebrow">COME FIND US</p><h2>Your next sweet moment starts here.</h2><p>Paphos, Cyprus · Exact pickup point and opening hours will appear here before launch.</p></div><a className="primary" href="#menu">Order for pickup <span>→</span></a></section>
