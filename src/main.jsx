@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BUSINESS, MENU } from './menuConfig.js';
 import './styles.css';
@@ -14,11 +14,12 @@ function App() {
   const [choice, setChoice] = useState({ size: 1, sauces: [], extras: [], qty: 1, note: '' });
   const [coffee, setCoffee] = useState(null);
   const [coffeeChoice, setCoffeeChoice] = useState({ sugar: 0, milk: 0, extras: [], qty: 1 });
-  const [upsell, setUpsell] = useState(false);
+  const [postAdd, setPostAdd] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
   const [admin, setAdmin] = useState(location.hash === '#orders');
+  const addLock = useRef(false);
 
   useEffect(() => localStorage.setItem('zippolino-cart', JSON.stringify(cart)), [cart]);
   useEffect(() => {
@@ -36,20 +37,23 @@ function App() {
       : [...current, item];
   });
   const openProduct = item => {
+    addLock.current = false;
     setProduct(item);
     setChoice({ size: 1, sauces: [], extras: [], qty: 1, note: '' });
     track('view_item', { item_id: item.id });
   };
   const openCoffee = item => {
+    addLock.current = false;
     setCoffee(item);
     setCoffeeChoice({ sugar: 0, milk: 0, extras: [], qty: 1 });
-    setUpsell(false);
   };
   const toggle = (field, index, setter) => setter(current => ({
     ...current,
     [field]: current[field].includes(index) ? current[field].filter(value => value !== index) : [...current[field], index],
   }));
   const addPancakes = () => {
+    if (addLock.current) return;
+    addLock.current = true;
     const size = MENU.pancakeSizes[choice.size];
     const sauces = choice.sauces.map(index => MENU.pancakeSauces[index]);
     const extras = choice.extras.map(index => MENU.pancakeExtras[index]);
@@ -60,9 +64,11 @@ function App() {
     mergeItem({ key: crypto.randomUUID(), id: product.id, signature: JSON.stringify({ size: choice.size, sauces: choice.sauces, extras: choice.extras, note: choice.note }), name: product.name, type: 'pancake', details, breakdown, note: choice.note, qty: choice.qty, unit });
     track('add_to_cart', { item_id: product.id, value: unit * choice.qty });
     setProduct(null);
-    setUpsell(true);
+    setPostAdd({ name: product.name, category: 'pancakes' });
   };
   const addCoffee = () => {
+    if (addLock.current) return;
+    addLock.current = true;
     const milk = coffee.allowsMilk ? MENU.milk[coffeeChoice.milk] : null;
     const extras = coffeeChoice.extras.map(index => MENU.coffeeExtras[index]);
     const unit = coffee.price + (milk?.price || 0) + extras.reduce((sum, option) => sum + option.price, 0);
@@ -71,14 +77,24 @@ function App() {
     mergeItem({ key: crypto.randomUUID(), id: coffee.id, signature: JSON.stringify({ sugar: coffeeChoice.sugar, milk: milk?.name, extras: coffeeChoice.extras }), name: coffee.name, type: 'coffee', details, breakdown, note: '', qty: coffeeChoice.qty, unit });
     track('add_to_cart', { item_id: coffee.id, value: unit * coffeeChoice.qty });
     setCoffee(null);
-    setCartOpen(true);
+    setPostAdd({ name: coffee.name, category: 'coffee' });
   };
   const addColdDrink = drink => {
     mergeItem({ key: crypto.randomUUID(), id: drink.id, signature: 'standard', name: drink.name, type: 'cold-drink', details: ['Cold drink'], breakdown: [{ label: drink.name, price: drink.price }], note: '', qty: 1, unit: drink.price });
     track('add_to_cart', { item_id: drink.id, value: drink.price });
   };
   const changeQty = (key, amount) => setCart(current => current.flatMap(item => item.key !== key ? [item] : item.qty + amount > 0 ? [{ ...item, qty: item.qty + amount }] : []));
-  const finishUpsell = () => { setUpsell(false); setCartOpen(true); };
+  const continueShopping = () => {
+    const category = postAdd?.category;
+    setPostAdd(null);
+    addLock.current = false;
+    requestAnimationFrame(() => document.getElementById(category)?.scrollIntoView({ block: 'start' }));
+  };
+  const viewCart = () => {
+    setPostAdd(null);
+    addLock.current = false;
+    setCartOpen(true);
+  };
   const submitOrder = async event => {
     event.preventDefault();
     const customer = Object.fromEntries(new FormData(event.currentTarget));
@@ -111,11 +127,11 @@ function App() {
     <footer><a className="brand" href="#top"><span>Z</span>ZIPPOLINO</a><div><a href="#pancakes">Menu</a><a href="#story">About</a><a href="mailto:hello@zippolino.com">Email</a></div><p>© {new Date().getFullYear()} ZIPPOLINO · ONLINE ORDERS ONLY · {BUSINESS.address}</p></footer>
     {count > 0 && <button className="mobile-bag" onClick={() => setCartOpen(true)}>View bag · {count} {count === 1 ? 'item' : 'items'} <b>{money(subtotal)}</b></button>}
 
-    {product && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setProduct(null)}><div className="modal product-modal"><button className="close" onClick={() => setProduct(null)}>×</button><p className="eyebrow">MAKE IT YOURS</p><h2>{product.name}</h2><p>{product.note}</p><fieldset><legend>Choose size</legend>{MENU.pancakeSizes.map((option, index) => <label key={option.name}><input type="radio" name="size" checked={choice.size === index} onChange={() => setChoice(current => ({ ...current, size: index }))}/><span><strong>{option.name}</strong> — {option.detail}{option.badge && <em className="badge">{option.badge}</em>}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><fieldset><legend>Choose sauces</legend>{MENU.pancakeSauces.map((option, index) => <label key={option.name}><input type="checkbox" checked={index === 0 ? choice.sauces.length === 0 : choice.sauces.includes(index)} onChange={() => index === 0 ? setChoice(current => ({ ...current, sauces: [] })) : toggle('sauces', index, setChoice)}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><fieldset><legend>Finish with extras</legend>{MENU.pancakeExtras.map((option, index) => <label key={option.name}><input type="checkbox" checked={index === 0 ? choice.extras.length === 0 : choice.extras.includes(index)} onChange={() => index === 0 ? setChoice(current => ({ ...current, extras: [] })) : toggle('extras', index, setChoice)}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><label className="note">Special instructions<textarea value={choice.note} onChange={event => setChoice(current => ({ ...current, note: event.target.value }))} placeholder="Allergies or requests?"/></label><div className="add-row"><Quantity value={choice.qty} setValue={qty => setChoice(current => ({ ...current, qty }))}/><button className="primary" onClick={addPancakes}>Add to bag</button></div></div></div>}
+    {product && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setProduct(null)}><div className="modal product-modal"><button className="close" onClick={() => setProduct(null)}>×</button><p className="eyebrow">MAKE IT YOURS</p><h2>{product.name}</h2><p>{product.note}</p><fieldset><legend>Choose size</legend>{MENU.pancakeSizes.map((option, index) => <label key={option.name}><input type="radio" name="size" checked={choice.size === index} onChange={() => setChoice(current => ({ ...current, size: index }))}/><span><strong>{option.name}</strong> — {option.detail}{option.badge && <em className="badge">{option.badge}</em>}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><fieldset><legend>Choose sauces</legend>{MENU.pancakeSauces.map((option, index) => <label key={option.name}><input type="checkbox" checked={index === 0 ? choice.sauces.length === 0 : choice.sauces.includes(index)} onChange={() => index === 0 ? setChoice(current => ({ ...current, sauces: [] })) : toggle('sauces', index, setChoice)}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><fieldset><legend>Finish with extras</legend>{MENU.pancakeExtras.map((option, index) => <label key={option.name}><input type="checkbox" checked={index === 0 ? choice.extras.length === 0 : choice.extras.includes(index)} onChange={() => index === 0 ? setChoice(current => ({ ...current, extras: [] })) : toggle('extras', index, setChoice)}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><label className="note">Special instructions<textarea value={choice.note} onChange={event => setChoice(current => ({ ...current, note: event.target.value }))} placeholder="Allergies or requests?"/></label><div className="add-row"><Quantity value={choice.qty} setValue={qty => setChoice(current => ({ ...current, qty }))}/><button className="primary" onClick={addPancakes}>Add to Cart</button></div></div></div>}
 
-    {coffee && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setCoffee(null)}><div className="modal coffee-modal"><button className="close" onClick={() => setCoffee(null)}>×</button><p className="eyebrow">COFFEE YOUR WAY</p><h2>{coffee.name}</h2><p>Starting at {money(coffee.price)}</p><fieldset><legend>Sugar</legend>{MENU.sugar.map((name, index) => <label key={name}><input type="radio" name="sugar" checked={coffeeChoice.sugar === index} onChange={() => setCoffeeChoice(current => ({ ...current, sugar: index }))}/><span>{name}</span><b>{index === 0 ? 'Default' : 'Included'}</b></label>)}</fieldset>{coffee.allowsMilk && <fieldset><legend>Milk</legend>{MENU.milk.map((option, index) => <label key={option.name}><input type="radio" name="milk" checked={coffeeChoice.milk === index} onChange={() => setCoffeeChoice(current => ({ ...current, milk: index }))}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset>}<fieldset><legend>Coffee extras</legend>{MENU.coffeeExtras.map((option, index) => <label key={option.name}><input type="checkbox" checked={coffeeChoice.extras.includes(index)} onChange={() => toggle('extras', index, setCoffeeChoice)}/><span>{option.name}</span><b>+{money(option.price)}</b></label>)}</fieldset><div className="add-row"><Quantity value={coffeeChoice.qty} setValue={qty => setCoffeeChoice(current => ({ ...current, qty }))}/><button className="primary" onClick={addCoffee}>Add to bag</button></div></div></div>}
+    {coffee && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setCoffee(null)}><div className="modal coffee-modal"><button className="close" onClick={() => setCoffee(null)}>×</button><p className="eyebrow">COFFEE YOUR WAY</p><h2>{coffee.name}</h2><p>Starting at {money(coffee.price)}</p><fieldset><legend>Sugar</legend>{MENU.sugar.map((name, index) => <label key={name}><input type="radio" name="sugar" checked={coffeeChoice.sugar === index} onChange={() => setCoffeeChoice(current => ({ ...current, sugar: index }))}/><span>{name}</span><b>{index === 0 ? 'Default' : 'Included'}</b></label>)}</fieldset>{coffee.allowsMilk && <fieldset><legend>Milk</legend>{MENU.milk.map((option, index) => <label key={option.name}><input type="radio" name="milk" checked={coffeeChoice.milk === index} onChange={() => setCoffeeChoice(current => ({ ...current, milk: index }))}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset>}<fieldset><legend>Coffee extras</legend>{MENU.coffeeExtras.map((option, index) => <label key={option.name}><input type="checkbox" checked={coffeeChoice.extras.includes(index)} onChange={() => toggle('extras', index, setCoffeeChoice)}/><span>{option.name}</span><b>+{money(option.price)}</b></label>)}</fieldset><div className="add-row"><Quantity value={coffeeChoice.qty} setValue={qty => setCoffeeChoice(current => ({ ...current, qty }))}/><button className="primary" onClick={addCoffee}>Add to Cart</button></div></div></div>}
 
-    {upsell && <div className="overlay"><div className="modal upsell-modal"><button className="close" onClick={finishUpsell}>×</button><p className="eyebrow">ONE MORE THING</p><h2>Would you like to add a drink?</h2><p>Optional — your pancakes are already safely in your bag.</p><div className="upsell-list"><button onClick={() => openCoffee(MENU.coffee.find(item => item.id === 'iced-latte'))}><span>Iced Latte</span><b>{money(3.5)}</b><em>Add drink</em></button>{MENU.coldDrinks.filter(item => ['coca-cola','water-500ml'].includes(item.id)).map(item => <button key={item.id} onClick={() => { addColdDrink(item); finishUpsell(); }}><span>{item.name}</span><b>{money(item.price)}</b><em>Add drink</em></button>)}</div><button className="back full" onClick={finishUpsell}>No thanks</button></div></div>}
+    {postAdd && <div className="overlay"><div className="modal added-modal" role="status"><div className="check">✓</div><p className="eyebrow">ADDED TO CART</p><h2>Added to cart ✓</h2><p>{postAdd.name} is in your cart.</p><div className="post-add-actions"><button className="continue-button" onClick={continueShopping}>Continue Shopping</button><button className="primary" onClick={viewCart}>View Cart</button></div></div></div>}
 
     {cartOpen && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setCartOpen(false)}><aside className="drawer"><button className="close" onClick={() => setCartOpen(false)}>×</button><p className="eyebrow">YOUR ORDER</p><h2>{checkout ? 'Checkout' : 'The good stuff.'}</h2>{!checkout ? <>{cart.length === 0 ? <div className="empty"><p>Your bag is waiting for something delicious.</p><button className="primary" onClick={() => setCartOpen(false)}>Browse menu</button></div> : <><div className="cart-list">{cart.map(item => <div key={item.key}><div><h3>{item.name}</h3>{item.details?.map(detail => <p key={detail}>{detail}</p>)}{item.note && <p>Note: {item.note}</p>}<div className="line-breakdown">{item.breakdown?.filter(line => line.price > 0).map(line => <small key={line.label || line.name}>{line.label || line.name}: {money(line.price)}</small>)}</div><Quantity value={item.qty} setValue={qty => changeQty(item.key, qty - item.qty)}/></div><b>{money(item.unit * item.qty)}</b><button onClick={() => setCart(current => current.filter(existing => existing.key !== item.key))}>Remove</button></div>)}</div><div className="total"><span>Total</span><b>{money(subtotal)}</b></div><button className="primary full" onClick={() => { setCheckout(true); track('begin_checkout', { value: subtotal }); }}>Secure checkout →</button></>}</> : <form className="checkout" onSubmit={submitOrder}><label>Full name<input name="name" required autoComplete="name"/></label><label>Email<input name="email" required type="email" autoComplete="email"/></label><label>Pickup time<select name="pickup"><option>As soon as possible</option><option>In 30 minutes</option><option>In 45 minutes</option><option>In 60 minutes</option></select></label><div className="pickup-box"><b>Pickup from</b><span>{BUSINESS.address}</span></div><label>Order notes<textarea name="notes" placeholder="Optional"/></label><div className="payment-note">🔒 Online payment is prepared for connection. Until payment credentials are added, this creates a test order without charging.</div><div className="total"><span>To pay</span><b>{money(subtotal)}</b></div><button className="primary full" type="submit">Place test order →</button><button className="back" type="button" onClick={() => setCheckout(false)}>← Back to bag</button></form>}</aside></div>}
     {confirmation && <div className="overlay"><div className="modal confirmation"><div className="check">✓</div><p className="eyebrow">ORDER RECEIVED</p><h2>Sweet choice.</h2><p>Your order <b>{confirmation.id}</b> is in the queue.</p><div className="pickup-box"><b>Pickup from</b><span>{confirmation.pickupAddress}</span></div><button className="primary" onClick={() => setConfirmation(null)}>Done</button></div></div>}
