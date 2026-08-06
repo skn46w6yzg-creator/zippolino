@@ -18,8 +18,10 @@ function App() {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
+  const [coldToast, setColdToast] = useState(null);
   const [admin, setAdmin] = useState(location.hash === '#orders');
   const addLock = useRef(false);
+  const coldToastTimers = useRef([]);
 
   useEffect(() => localStorage.setItem('zippolino-cart', JSON.stringify(cart)), [cart]);
   useEffect(() => {
@@ -27,6 +29,7 @@ function App() {
     addEventListener('hashchange', update);
     return () => removeEventListener('hashchange', update);
   }, []);
+  useEffect(() => () => coldToastTimers.current.forEach(clearTimeout), []);
 
   const count = cart.reduce((sum, item) => sum + item.qty, 0);
   const subtotal = totalCart(cart);
@@ -82,6 +85,12 @@ function App() {
   const addColdDrink = drink => {
     mergeItem({ key: crypto.randomUUID(), id: drink.id, signature: 'standard', name: drink.name, type: 'cold-drink', details: ['Cold drink'], breakdown: [{ label: drink.name, price: drink.price }], note: '', qty: 1, unit: drink.price });
     track('add_to_cart', { item_id: drink.id, value: drink.price });
+    coldToastTimers.current.forEach(clearTimeout);
+    setColdToast({ visible: true });
+    coldToastTimers.current = [
+      setTimeout(() => setColdToast({ visible: false }), 1500),
+      setTimeout(() => setColdToast(null), 1800),
+    ];
   };
   const changeQty = (key, amount) => setCart(current => current.flatMap(item => item.key !== key ? [item] : item.qty + amount > 0 ? [{ ...item, qty: item.qty + amount }] : []));
   const continueShopping = () => {
@@ -126,6 +135,7 @@ function App() {
     </main>
     <footer><a className="brand" href="#top"><span>Z</span>ZIPPOLINO</a><div><a href="#pancakes">Menu</a><a href="#story">About</a><a href="mailto:hello@zippolino.com">Email</a></div><p>© {new Date().getFullYear()} ZIPPOLINO · ONLINE ORDERS ONLY · {BUSINESS.address}</p></footer>
     {count > 0 && <button className="mobile-bag" onClick={() => setCartOpen(true)}>View bag · {count} {count === 1 ? 'item' : 'items'} <b>{money(subtotal)}</b></button>}
+    {coldToast && <div role="status" aria-live="polite" style={{ position: 'fixed', right: 20, bottom: 24, zIndex: 45, padding: '13px 18px', background: '#d7ad5b', color: '#171109', fontWeight: 700, pointerEvents: 'none', opacity: coldToast.visible ? 1 : 0, transform: coldToast.visible ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity .3s ease, transform .3s ease', boxShadow: '0 12px 30px #0008' }}>Added to cart ✓</div>}
 
     {product && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setProduct(null)}><div className="modal product-modal"><button className="close" onClick={() => setProduct(null)}>×</button><p className="eyebrow">MAKE IT YOURS</p><h2>{product.name}</h2><p>{product.note}</p><fieldset><legend>Choose size</legend>{MENU.pancakeSizes.map((option, index) => <label key={option.name}><input type="radio" name="size" checked={choice.size === index} onChange={() => setChoice(current => ({ ...current, size: index }))}/><span><strong>{option.name}</strong> — {option.detail}{option.badge && <em className="badge">{option.badge}</em>}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><fieldset><legend>Choose sauces</legend>{MENU.pancakeSauces.map((option, index) => <label key={option.name}><input type="checkbox" checked={index === 0 ? choice.sauces.length === 0 : choice.sauces.includes(index)} onChange={() => index === 0 ? setChoice(current => ({ ...current, sauces: [] })) : toggle('sauces', index, setChoice)}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><fieldset><legend>Finish with extras</legend>{MENU.pancakeExtras.map((option, index) => <label key={option.name}><input type="checkbox" checked={index === 0 ? choice.extras.length === 0 : choice.extras.includes(index)} onChange={() => index === 0 ? setChoice(current => ({ ...current, extras: [] })) : toggle('extras', index, setChoice)}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><label className="note">Special instructions<textarea value={choice.note} onChange={event => setChoice(current => ({ ...current, note: event.target.value }))} placeholder="Allergies or requests?"/></label><div className="add-row"><Quantity value={choice.qty} setValue={qty => setChoice(current => ({ ...current, qty }))}/><button className="primary" onClick={addPancakes}>Add to Cart</button></div></div></div>}
 
