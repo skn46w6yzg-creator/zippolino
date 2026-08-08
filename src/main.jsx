@@ -16,6 +16,7 @@ function App() {
   const [choice, setChoice] = useState({ size: 1, sauces: [], extras: [], qty: 1, note: '' });
   const [coffee, setCoffee] = useState(null);
   const [coffeeChoice, setCoffeeChoice] = useState({ sugar: 0, milk: 0, extras: [], qty: 1 });
+  const [coldQuantities, setColdQuantities] = useState({});
   const [postAdd, setPostAdd] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
@@ -97,8 +98,10 @@ function App() {
     setPostAdd({ name: coffee.name, category: 'coffee' });
   };
   const addColdDrink = drink => {
-    mergeItem({ key: crypto.randomUUID(), id: drink.id, signature: 'standard', name: drink.name, type: 'cold-drink', details: ['Cold drink'], breakdown: [{ label: drink.name, price: drink.price }], note: '', qty: 1, unit: drink.price });
-    track('add_to_cart', { item_id: drink.id, value: drink.price });
+    const qty = coldQuantities[drink.id] || 1;
+    mergeItem({ key: crypto.randomUUID(), id: drink.id, signature: 'standard', name: drink.name, type: 'cold-drink', details: ['Cold drink'], breakdown: [{ label: drink.name, price: drink.price }], note: '', qty, unit: drink.price });
+    track('add_to_cart', { item_id: drink.id, value: drink.price * qty });
+    setColdQuantities(current => ({ ...current, [drink.id]: 1 }));
     coldToastTimers.current.forEach(clearTimeout);
     setColdToast({ visible: true });
     coldToastTimers.current = [
@@ -174,7 +177,7 @@ function App() {
       <div className="category-nav"><a href="#pancakes">Dutch Mini Pancakes</a><a href="#coffee">Coffee</a><a href="#cold-drinks">Cold Drinks</a></div>
       <section id="pancakes" className="menu"><div className="section-head"><div><p className="eyebrow">DUTCH MINI PANCAKES</p><h2>Pick your pleasure.</h2></div><p>Every box starts with warm Dutch mini pancakes. Regular includes 12 and is our most popular size.</p></div><div className="grid">{MENU.pancakeProducts.map((item, index) => <article className={`product ${item.tone}`} key={item.id} onClick={() => openProduct(item)}><div className="food"><img src={`/assets/menu/${item.id}.webp`} width="1254" height="1254" alt={item.name}/></div><div className="product-info"><small>0{index + 1}</small><h3>{item.name}</h3><p>{item.note}</p><div className="card-sizes">{MENU.pancakeSizes.map(size => <span key={size.name}><small>{size.detail}</small><b>{money(item.price + size.price)}</b></span>)}</div><button className="customise-card" aria-label={`Customise ${item.name}`}>Customise +</button></div></article>)}</div></section>
       <section id="coffee" className="drink-category"><div className="section-head"><div><p className="eyebrow">COFFEE</p><h2>Your perfect cup.</h2></div><p>Choose your sugar, milk and optional coffee extras.</p></div><div className="coffee-grid">{MENU.coffee.map(item => <article className="coffee-card" key={item.id}><div><p className="eyebrow">MADE TO ORDER</p><h3>{item.name}</h3><b>{money(item.price)}</b></div><button onClick={() => openCoffee(item)} aria-label={`Customise ${item.name}`}>Customise +</button></article>)}</div></section>
-      <section id="cold-drinks" className="drink-category cold-section"><div className="section-head"><div><p className="eyebrow">COLD DRINKS</p><h2>Keep it cool.</h2></div><p>Add any cold drink directly. Adjust the quantity in your bag.</p></div><div className="cold-list">{MENU.coldDrinks.map(item => <div className="cold-row" key={item.id}><span>{item.name}</span><b>{money(item.price)}</b><button onClick={() => addColdDrink(item)} aria-label={`Add ${item.name}`}>Add +</button></div>)}</div></section>
+      <section id="cold-drinks" className="drink-category cold-section"><div className="section-head"><div><p className="eyebrow">COLD DRINKS</p><h2>Keep it cool.</h2></div><p>Choose your quantity and add any cold drink directly.</p></div><div className="cold-list">{MENU.coldDrinks.map(item => <div className="cold-row" key={item.id}><span>{item.name}</span><b>{money(item.price)}</b><Quantity value={coldQuantities[item.id] || 1} setValue={qty => setColdQuantities(current => ({ ...current, [item.id]: qty }))}/><button onClick={() => addColdDrink(item)} aria-label={`Add ${coldQuantities[item.id] || 1} ${item.name}`}>Add +</button></div>)}</div></section>
       <section id="story" className="story"><div className="story-art"><div className="gold-orb">Z</div></div><div><p className="eyebrow">A TINY DUTCH CLASSIC</p><h2>Small by nature.<br/>Unforgettable by design.</h2><p>Poffertjes are soft, airy mini pancakes with a golden edge. At ZIPPOLINO, we make every batch fresh and turn it into something joyful, generous and unmistakably ours.</p><div className="values"><span><b>01</b>Freshly cooked</span><span><b>02</b>Quality toppings</span><span><b>03</b>Made for sharing</span></div></div></section>
       <section className="how"><p className="eyebrow">THREE SIMPLE STEPS</p><h2>Tap. Top. Collect.</h2><div>{[['01','Choose','Pick pancakes, coffee or a cold drink.'],['02','Customise','Make every order exactly yours.'],['03','Collect','We’ll prepare it fresh for pickup.']].map(step => <article key={step[0]}><b>{step[0]}</b><h3>{step[1]}</h3><p>{step[2]}</p></article>)}</div></section>
       <section id="visit" className="visit"><div><p className="eyebrow">PICKUP ADDRESS</p><h2>Your next sweet moment starts here.</h2><p>{BUSINESS.address}</p></div><a className="primary" href="#pancakes">Order for pickup <span>→</span></a></section>
