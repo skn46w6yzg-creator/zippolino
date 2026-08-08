@@ -19,6 +19,7 @@ function App() {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
+  const [orderError, setOrderError] = useState('');
   const [coldToast, setColdToast] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [removeToast, setRemoveToast] = useState(false);
@@ -136,6 +137,7 @@ function App() {
   };
   const submitOrder = async event => {
     event.preventDefault();
+    setOrderError('');
     const customer = Object.fromEntries(new FormData(event.currentTarget));
     // TODO: A payment-confirmation webhook must change this to "New" after verified payment.
     const order = { id: `ZIP-${Date.now().toString().slice(-6)}`, createdAt: new Date().toISOString(), status: 'Pending payment', items: cart, total: subtotal, customer, pickupAddress: BUSINESS.address };
@@ -143,7 +145,15 @@ function App() {
     localStorage.setItem('zippolino-orders', JSON.stringify([order, ...orders]));
     track('purchase', { transaction_id: order.id, value: subtotal, currency: 'EUR' });
     const api = import.meta.env.VITE_ORDER_API_URL;
-    if (api) { try { await fetch(api, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order) }); } catch {} }
+    if (api) {
+      try {
+        const response = await fetch(api, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order) });
+        if (!response.ok) throw new Error(`Order API returned ${response.status}`);
+      } catch {
+        setOrderError('We could not confirm that your order reached the kitchen. Please try again. Your cart has been kept.');
+        return;
+      }
+    }
     const payment = import.meta.env.VITE_PAYMENT_URL;
     if (payment) { location.href = `${payment}?reference=${order.id}&amount=${subtotal.toFixed(2)}`; return; }
     setConfirmation(order); setCart([]); setCheckout(false); setCartOpen(false);
@@ -174,7 +184,7 @@ function App() {
 
     {postAdd && <div className="overlay"><div className="modal added-modal" role="status"><div className="check">✓</div><p className="eyebrow">ADDED TO CART</p><h2>Added to cart ✓</h2><p>{postAdd.name} is in your cart.</p><div className="post-add-actions"><button className="continue-button" onClick={continueShopping}>Continue Shopping</button><button className="primary" onClick={viewCart}>View Cart</button></div></div></div>}
 
-    {cartOpen && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setCartOpen(false)}><aside className="drawer"><button className="close" onClick={() => setCartOpen(false)}>×</button><p className="eyebrow">YOUR ORDER</p><h2>{checkout ? 'Checkout' : 'The good stuff.'}</h2>{!checkout ? <>{cart.length === 0 ? <div className="empty"><p>Your bag is waiting for something delicious.</p><button className="primary" onClick={() => setCartOpen(false)}>Browse menu</button></div> : <><div className="cart-list">{cart.map(item => <div key={item.key} className={removing === item.key ? 'sand-away' : ''}><div><h3>{item.name}</h3>{item.details?.map(detail => <p key={detail}>{detail}</p>)}{item.note && <p>Note: {item.note}</p>}<div className="line-breakdown">{item.breakdown?.filter(line => line.price > 0).map(line => <small key={line.label || line.name}>{line.label || line.name}: {money(line.price)}</small>)}</div><Quantity value={item.qty} setValue={qty => changeQty(item.key, qty - item.qty)}/></div><b>{money(item.unit * item.qty)}</b><button className="trash-button" aria-label={`Remove ${item.name}`} onClick={() => removeItem(item)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></div>)}</div><div className="total"><span>Total</span><b>{money(subtotal)}</b></div><button className="primary full" onClick={() => { setCheckout(true); track('begin_checkout', { value: subtotal }); }}>Secure checkout →</button></>}</> : <form className="checkout" onSubmit={submitOrder}><label>Full name<input name="name" required autoComplete="name"/></label><label>Email<input name="email" required type="email" autoComplete="email"/></label><label>Pickup time<select name="pickup"><option>As soon as possible</option><option>In 30 minutes</option><option>In 45 minutes</option><option>In 60 minutes</option></select></label><div className="pickup-box"><b>Pickup from</b><span>{BUSINESS.address}</span></div><label>Order notes<textarea name="notes" placeholder="Optional"/></label><div className="payment-note">🔒 Online payment is prepared for connection. Until payment credentials are added, this creates a test order without charging.</div><div className="total"><span>To pay</span><b>{money(subtotal)}</b></div><button className="primary full" type="submit">Place test order →</button><button className="back" type="button" onClick={() => setCheckout(false)}>← Back to bag</button></form>}</aside></div>}
+    {cartOpen && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setCartOpen(false)}><aside className="drawer"><button className="close" onClick={() => setCartOpen(false)}>×</button><p className="eyebrow">YOUR ORDER</p><h2>{checkout ? 'Checkout' : 'The good stuff.'}</h2>{!checkout ? <>{cart.length === 0 ? <div className="empty"><p>Your bag is waiting for something delicious.</p><button className="primary" onClick={() => setCartOpen(false)}>Browse menu</button></div> : <><div className="cart-list">{cart.map(item => <div key={item.key} className={removing === item.key ? 'sand-away' : ''}><div><h3>{item.name}</h3>{item.details?.map(detail => <p key={detail}>{detail}</p>)}{item.note && <p>Note: {item.note}</p>}<div className="line-breakdown">{item.breakdown?.filter(line => line.price > 0).map(line => <small key={line.label || line.name}>{line.label || line.name}: {money(line.price)}</small>)}</div><Quantity value={item.qty} setValue={qty => changeQty(item.key, qty - item.qty)}/></div><b>{money(item.unit * item.qty)}</b><button className="trash-button" aria-label={`Remove ${item.name}`} onClick={() => removeItem(item)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></div>)}</div><div className="total"><span>Total</span><b>{money(subtotal)}</b></div><button className="primary full" onClick={() => { setCheckout(true); track('begin_checkout', { value: subtotal }); }}>Secure checkout →</button></>}</> : <form className="checkout" onSubmit={submitOrder}><label>Full name<input name="name" required autoComplete="name"/></label><label>Email<input name="email" required type="email" autoComplete="email"/></label><label>Pickup time<select name="pickup"><option>As soon as possible</option><option>In 30 minutes</option><option>In 45 minutes</option><option>In 60 minutes</option></select></label><div className="pickup-box"><b>Pickup from</b><span>{BUSINESS.address}</span></div><label>Order notes<textarea name="notes" placeholder="Optional"/></label><div className="payment-note">🔒 Online payment is prepared for connection. Until payment credentials are added, this creates a test order without charging.</div>{orderError && <div className="form-error" role="alert">{orderError}</div>}<div className="total"><span>To pay</span><b>{money(subtotal)}</b></div><button className="primary full" type="submit">Place test order →</button><button className="back" type="button" onClick={() => setCheckout(false)}>← Back to bag</button></form>}</aside></div>}
     {confirmation && <div className="overlay"><div className="modal confirmation"><div className="check">✓</div><p className="eyebrow">ORDER RECEIVED</p><h2>Sweet choice.</h2><p>Your order <b>{confirmation.id}</b> is in the queue.</p><div className="pickup-box"><b>Pickup from</b><span>{confirmation.pickupAddress}</span></div><button className="primary" onClick={() => setConfirmation(null)}>Done</button></div></div>}
   </>;
 }
