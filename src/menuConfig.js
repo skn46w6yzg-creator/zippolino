@@ -22,7 +22,6 @@ export const MENU = {
     { name: 'Sharing Box', detail: '30 mini pancakes', price: 10 },
   ],
   pancakeSauces: [
-    { name: 'As described', price: 0 },
     { name: 'Nutella', price: 1 },
     { name: 'White chocolate', price: 1 },
     { name: 'Pistachio', price: 2 },
