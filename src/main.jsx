@@ -20,9 +20,12 @@ function App() {
   const [checkout, setCheckout] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
   const [coldToast, setColdToast] = useState(null);
+  const [removing, setRemoving] = useState(null);
+  const [removeToast, setRemoveToast] = useState(false);
   const [admin, setAdmin] = useState(location.hash === '#orders');
   const addLock = useRef(false);
   const coldToastTimers = useRef([]);
+  const removeTimers = useRef([]);
 
   useEffect(() => localStorage.setItem('zippolino-cart', JSON.stringify(cart)), [cart]);
   useEffect(() => {
@@ -30,7 +33,7 @@ function App() {
     addEventListener('hashchange', update);
     return () => removeEventListener('hashchange', update);
   }, []);
-  useEffect(() => () => coldToastTimers.current.forEach(clearTimeout), []);
+  useEffect(() => () => [...coldToastTimers.current, ...removeTimers.current].forEach(clearTimeout), []);
 
   const count = cart.reduce((sum, item) => sum + item.qty, 0);
   const subtotal = totalCart(cart);
@@ -94,6 +97,29 @@ function App() {
     ];
   };
   const changeQty = (key, amount) => setCart(current => current.flatMap(item => item.key !== key ? [item] : item.qty + amount > 0 ? [{ ...item, qty: item.qty + amount }] : []));
+  const removeItem = item => {
+    if (removing) return;
+    setRemoving(item.key);
+    try {
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      const audio = new Audio();
+      const oscillator = audio.createOscillator();
+      const gain = audio.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(850, audio.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(100, audio.currentTime + .24);
+      gain.gain.setValueAtTime(.06, audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + .24);
+      oscillator.connect(gain).connect(audio.destination);
+      oscillator.start();
+      oscillator.stop(audio.currentTime + .24);
+    } catch {}
+    removeTimers.current.forEach(clearTimeout);
+    removeTimers.current = [
+      setTimeout(() => { setCart(current => current.filter(existing => existing.key !== item.key)); setRemoving(null); setRemoveToast(true); }, 380),
+      setTimeout(() => setRemoveToast(false), 1500),
+    ];
+  };
   const continueShopping = () => {
     const category = postAdd?.category;
     setPostAdd(null);
@@ -136,6 +162,7 @@ function App() {
     <footer><a className="brand" href="#top"><Brand/></a><div><a href="#pancakes">Menu</a><a href="#story">About</a><a href="mailto:hello@zippolino.com">Email</a></div><p>© {new Date().getFullYear()} ZIPPOLINO · ONLINE ORDERS ONLY · {BUSINESS.address}</p></footer>
     {count > 0 && <button className="mobile-bag" onClick={() => setCartOpen(true)}>View bag · {count} {count === 1 ? 'item' : 'items'} <b>{money(subtotal)}</b></button>}
     {coldToast && <div role="status" aria-live="polite" style={{ position: 'fixed', right: 20, bottom: 24, zIndex: 45, padding: '13px 18px', background: '#d7ad5b', color: '#171109', fontWeight: 700, pointerEvents: 'none', opacity: coldToast.visible ? 1 : 0, transform: coldToast.visible ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity .3s ease, transform .3s ease', boxShadow: '0 12px 30px #0008' }}>Added to cart ✓</div>}
+    {removeToast && <div className="remove-toast" role="status" aria-live="polite">Item removed</div>}
 
     {product && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setProduct(null)}><div className="modal product-modal"><button className="close" onClick={() => setProduct(null)}>×</button><p className="eyebrow">MAKE IT YOURS</p><h2>{product.name}</h2><p>{product.note}</p><fieldset><legend>Choose size</legend>{MENU.pancakeSizes.map((option, index) => <label key={option.name}><input type="radio" name="size" checked={choice.size === index} onChange={() => setChoice(current => ({ ...current, size: index }))}/><span><strong>{option.name}</strong> — {option.detail}{option.badge && <em className="badge">{option.badge}</em>}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><fieldset><legend>Choose sauces</legend>{MENU.pancakeSauces.map((option, index) => <label key={option.name}><input type="checkbox" checked={index === 0 ? choice.sauces.length === 0 : choice.sauces.includes(index)} onChange={() => index === 0 ? setChoice(current => ({ ...current, sauces: [] })) : toggle('sauces', index, setChoice)}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><fieldset><legend>Finish with extras</legend>{MENU.pancakeExtras.map((option, index) => <label key={option.name}><input type="checkbox" checked={index === 0 ? choice.extras.length === 0 : choice.extras.includes(index)} onChange={() => index === 0 ? setChoice(current => ({ ...current, extras: [] })) : toggle('extras', index, setChoice)}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><label className="note">Special instructions<textarea value={choice.note} onChange={event => setChoice(current => ({ ...current, note: event.target.value }))} placeholder="Allergies or requests?"/></label><div className="add-row"><Quantity value={choice.qty} setValue={qty => setChoice(current => ({ ...current, qty }))}/><button className="primary" onClick={addPancakes}>Add to Cart</button></div></div></div>}
 
@@ -143,7 +170,7 @@ function App() {
 
     {postAdd && <div className="overlay"><div className="modal added-modal" role="status"><div className="check">✓</div><p className="eyebrow">ADDED TO CART</p><h2>Added to cart ✓</h2><p>{postAdd.name} is in your cart.</p><div className="post-add-actions"><button className="continue-button" onClick={continueShopping}>Continue Shopping</button><button className="primary" onClick={viewCart}>View Cart</button></div></div></div>}
 
-    {cartOpen && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setCartOpen(false)}><aside className="drawer"><button className="close" onClick={() => setCartOpen(false)}>×</button><p className="eyebrow">YOUR ORDER</p><h2>{checkout ? 'Checkout' : 'The good stuff.'}</h2>{!checkout ? <>{cart.length === 0 ? <div className="empty"><p>Your bag is waiting for something delicious.</p><button className="primary" onClick={() => setCartOpen(false)}>Browse menu</button></div> : <><div className="cart-list">{cart.map(item => <div key={item.key}><div><h3>{item.name}</h3>{item.details?.map(detail => <p key={detail}>{detail}</p>)}{item.note && <p>Note: {item.note}</p>}<div className="line-breakdown">{item.breakdown?.filter(line => line.price > 0).map(line => <small key={line.label || line.name}>{line.label || line.name}: {money(line.price)}</small>)}</div><Quantity value={item.qty} setValue={qty => changeQty(item.key, qty - item.qty)}/></div><b>{money(item.unit * item.qty)}</b><button onClick={() => setCart(current => current.filter(existing => existing.key !== item.key))}>Remove</button></div>)}</div><div className="total"><span>Total</span><b>{money(subtotal)}</b></div><button className="primary full" onClick={() => { setCheckout(true); track('begin_checkout', { value: subtotal }); }}>Secure checkout →</button></>}</> : <form className="checkout" onSubmit={submitOrder}><label>Full name<input name="name" required autoComplete="name"/></label><label>Email<input name="email" required type="email" autoComplete="email"/></label><label>Pickup time<select name="pickup"><option>As soon as possible</option><option>In 30 minutes</option><option>In 45 minutes</option><option>In 60 minutes</option></select></label><div className="pickup-box"><b>Pickup from</b><span>{BUSINESS.address}</span></div><label>Order notes<textarea name="notes" placeholder="Optional"/></label><div className="payment-note">🔒 Online payment is prepared for connection. Until payment credentials are added, this creates a test order without charging.</div><div className="total"><span>To pay</span><b>{money(subtotal)}</b></div><button className="primary full" type="submit">Place test order →</button><button className="back" type="button" onClick={() => setCheckout(false)}>← Back to bag</button></form>}</aside></div>}
+    {cartOpen && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setCartOpen(false)}><aside className="drawer"><button className="close" onClick={() => setCartOpen(false)}>×</button><p className="eyebrow">YOUR ORDER</p><h2>{checkout ? 'Checkout' : 'The good stuff.'}</h2>{!checkout ? <>{cart.length === 0 ? <div className="empty"><p>Your bag is waiting for something delicious.</p><button className="primary" onClick={() => setCartOpen(false)}>Browse menu</button></div> : <><div className="cart-list">{cart.map(item => <div key={item.key} className={removing === item.key ? 'sand-away' : ''}><div><h3>{item.name}</h3>{item.details?.map(detail => <p key={detail}>{detail}</p>)}{item.note && <p>Note: {item.note}</p>}<div className="line-breakdown">{item.breakdown?.filter(line => line.price > 0).map(line => <small key={line.label || line.name}>{line.label || line.name}: {money(line.price)}</small>)}</div><Quantity value={item.qty} setValue={qty => changeQty(item.key, qty - item.qty)}/></div><b>{money(item.unit * item.qty)}</b><button className="trash-button" aria-label={`Remove ${item.name}`} onClick={() => removeItem(item)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></div>)}</div><div className="total"><span>Total</span><b>{money(subtotal)}</b></div><button className="primary full" onClick={() => { setCheckout(true); track('begin_checkout', { value: subtotal }); }}>Secure checkout →</button></>}</> : <form className="checkout" onSubmit={submitOrder}><label>Full name<input name="name" required autoComplete="name"/></label><label>Email<input name="email" required type="email" autoComplete="email"/></label><label>Pickup time<select name="pickup"><option>As soon as possible</option><option>In 30 minutes</option><option>In 45 minutes</option><option>In 60 minutes</option></select></label><div className="pickup-box"><b>Pickup from</b><span>{BUSINESS.address}</span></div><label>Order notes<textarea name="notes" placeholder="Optional"/></label><div className="payment-note">🔒 Online payment is prepared for connection. Until payment credentials are added, this creates a test order without charging.</div><div className="total"><span>To pay</span><b>{money(subtotal)}</b></div><button className="primary full" type="submit">Place test order →</button><button className="back" type="button" onClick={() => setCheckout(false)}>← Back to bag</button></form>}</aside></div>}
     {confirmation && <div className="overlay"><div className="modal confirmation"><div className="check">✓</div><p className="eyebrow">ORDER RECEIVED</p><h2>Sweet choice.</h2><p>Your order <b>{confirmation.id}</b> is in the queue.</p><div className="pickup-box"><b>Pickup from</b><span>{confirmation.pickupAddress}</span></div><button className="primary" onClick={() => setConfirmation(null)}>Done</button></div></div>}
   </>;
 }
