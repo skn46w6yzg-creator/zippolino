@@ -20,3 +20,6 @@ html,body{max-width:100%;overflow-x:hidden}main,section,.hero-copy,.hero-art{min
 
 .brand{display:flex;align-items:center}.brand-logo{display:block;width:132px;height:62px;object-fit:contain}footer .brand-logo{width:170px;height:92px}.food{height:280px;background:#090806!important}.food img{width:100%;height:100%;object-fit:cover;display:block}.product-info p{height:auto;min-height:40px}.card-sizes{display:grid!important;grid-template-columns:1fr 1fr;gap:8px!important;margin:20px 0!important}.card-sizes span{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line)}.card-sizes small{color:var(--muted);font-size:9px}.card-sizes b{color:var(--gold);font-size:11px}.customise-card{width:100%!important;height:auto!important;border-radius:0!important;padding:12px!important;font-size:12px!important;font-weight:700}.product-info>button:hover{background:var(--gold);color:var(--ink)}
 @media(max-width:600px){.brand-logo{width:112px;height:54px}.food{height:290px}.card-sizes{grid-template-columns:1fr 1fr!important}}
+
+.hero-art{padding:0;background:#090806}.hero-image{width:100%;height:100%;display:block;object-fit:cover}.food{height:auto;aspect-ratio:1;padding:0}.food img{object-fit:contain}
+@media(max-width:600px){.food{height:auto}.hero-image{object-position:62% center}}
