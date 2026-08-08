@@ -1,5 +1,9 @@
 # ZIPPOLINO
 
+## Order desk access
+
+Set `VITE_ORDERS_PASSCODE` to protect the `#orders` kitchen view. This session-based client-side passcode is only a stopgap; replace it with real server-side authentication when the backend order API is connected.
+
 Mobile-first ordering site for premium Dutch mini pancakes.
 
 ## Run locally

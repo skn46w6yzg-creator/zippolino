@@ -148,7 +148,7 @@ function App() {
     setConfirmation(order); setCart([]); setCheckout(false); setCartOpen(false);
   };
 
-  if (admin) return <Orders />;
+  if (admin) return <OrdersGate />;
   return <>
     <header><a className="brand" href="#top"><Brand/></a><nav><a href="#pancakes">Pancakes</a><a href="#coffee">Coffee</a><a href="#cold-drinks">Cold drinks</a></nav><button className="cart-btn" onClick={() => setCartOpen(true)}>Bag <b>{count}</b></button></header>
     <main id="top">
@@ -180,6 +180,21 @@ function App() {
 
 function Quantity({ value, setValue }) {
   return <div className="qty"><button type="button" onClick={() => setValue(Math.max(1, value - 1))}>−</button><b>{value}</b><button type="button" onClick={() => setValue(value + 1)}>+</button></div>;
+}
+
+function OrdersGate() {
+  const passcode = import.meta.env.VITE_ORDERS_PASSCODE;
+  const [allowed, setAllowed] = useState(() => sessionStorage.getItem('zippolino-orders-auth') === 'yes');
+  const [error, setError] = useState('');
+  if (allowed) return <Orders />;
+  const unlock = event => {
+    event.preventDefault();
+    if (passcode && new FormData(event.currentTarget).get('passcode') === passcode) {
+      sessionStorage.setItem('zippolino-orders-auth', 'yes');
+      setAllowed(true);
+    } else setError(passcode ? 'Incorrect passcode.' : 'Orders passcode is not configured.');
+  };
+  return <div className="admin"><header><a className="brand" href="#top"><Brand/></a><b>ORDER DESK</b><a href="#top">← Storefront</a></header><main><form className="checkout admin-login" onSubmit={unlock}><p className="eyebrow">RESTRICTED ACCESS</p><h1>Kitchen login</h1><label>Passcode<input name="passcode" type="password" required autoComplete="current-password"/></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="primary" type="submit">Open order desk</button></form></main></div>;
 }
 
 function Orders() {
