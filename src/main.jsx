@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BUSINESS, MENU } from './menuConfig.js';
 import { createOrderId } from './order.js';
+import { ANALYTICS_CONSENT_KEY, track } from './analytics.js';
 import './styles.css';
 
 const money = value => `€${Number(value).toFixed(2)}`;
-const track = (name, data = {}) => window.dataLayer?.push({ event: name, ...data });
 const slug = value => value.toLowerCase().replaceAll(' ', '-');
 const totalCart = cart => cart.reduce((sum, item) => sum + item.unit * item.qty, 0);
 const Brand = () => <img className="brand-logo" src="/assets/zippolino-crowned-logo.png" alt="ZIPPOLINO"/>;
@@ -24,6 +24,7 @@ function App() {
   const [coldToast, setColdToast] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [removeToast, setRemoveToast] = useState(false);
+  const [analyticsConsent, setAnalyticsConsent] = useState(() => localStorage.getItem(ANALYTICS_CONSENT_KEY));
   const [admin, setAdmin] = useState(location.hash === '#orders');
   const addLock = useRef(false);
   const coldToastTimers = useRef([]);
@@ -46,6 +47,10 @@ function App() {
       ? current.map(existing => existing.key === match.key ? { ...existing, qty: existing.qty + item.qty } : existing)
       : [...current, item];
   });
+  const chooseAnalyticsConsent = choice => {
+    localStorage.setItem(ANALYTICS_CONSENT_KEY, choice);
+    setAnalyticsConsent(choice);
+  };
   const openProduct = item => {
     addLock.current = false;
     setProduct(item);
@@ -178,6 +183,7 @@ function App() {
     {count > 0 && <button className="mobile-bag" onClick={() => setCartOpen(true)}>View bag · {count} {count === 1 ? 'item' : 'items'} <b>{money(subtotal)}</b></button>}
     {coldToast && <div role="status" aria-live="polite" style={{ position: 'fixed', right: 20, bottom: 24, zIndex: 45, padding: '13px 18px', background: '#d7ad5b', color: '#171109', fontWeight: 700, pointerEvents: 'none', opacity: coldToast.visible ? 1 : 0, transform: coldToast.visible ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity .3s ease, transform .3s ease', boxShadow: '0 12px 30px #0008' }}>Added to cart ✓</div>}
     {removeToast && <div className="remove-toast" role="status" aria-live="polite">Item removed</div>}
+    {!analyticsConsent && <aside className="consent-banner" aria-label="Cookie and analytics consent"><p><b>Your privacy matters.</b> We use optional analytics to understand how the site is used. No analytics run unless you accept.</p><div><button onClick={() => chooseAnalyticsConsent('declined')}>Decline</button><button className="primary" onClick={() => chooseAnalyticsConsent('accepted')}>Accept</button></div></aside>}
 
     {product && <div className="overlay" onMouseDown={event => event.target === event.currentTarget && setProduct(null)}><div className="modal product-modal"><button className="close" onClick={() => setProduct(null)}>×</button><p className="eyebrow">MAKE IT YOURS</p><h2>{product.name}</h2><p>{product.note}</p><fieldset><legend>Choose size</legend>{MENU.pancakeSizes.map((option, index) => { const difference = option.price - MENU.pancakeSizes[1].price; return <label key={option.name}><input type="radio" name="size" checked={choice.size === index} onChange={() => setChoice(current => ({ ...current, size: index }))}/><span><strong>{option.name}</strong> — {option.detail}{option.badge && <em className="badge">{option.badge}</em>}</span><b>{difference === 0 ? money(0) : `${difference > 0 ? '+' : '−'}${money(Math.abs(difference))}`}</b></label>; })}</fieldset><fieldset><legend>Choose sauces</legend>{MENU.pancakeSauces.map((option, index) => <label key={option.name}><input type="checkbox" checked={choice.sauces.includes(index)} onChange={() => toggle('sauces', index, setChoice)}/><span>{option.name}</span><b>+{money(option.price)}</b></label>)}</fieldset><fieldset><legend>Finish with extras</legend>{MENU.pancakeExtras.map((option, index) => <label key={option.name}><input type="checkbox" checked={index === 0 ? choice.extras.length === 0 : choice.extras.includes(index)} onChange={() => index === 0 ? setChoice(current => ({ ...current, extras: [] })) : toggle('extras', index, setChoice)}/><span>{option.name}</span><b>{option.price ? `+${money(option.price)}` : 'Included'}</b></label>)}</fieldset><label className="note">Special instructions<textarea value={choice.note} onChange={event => setChoice(current => ({ ...current, note: event.target.value }))} placeholder="Allergies or requests?"/></label><div className="add-row"><Quantity value={choice.qty} setValue={qty => setChoice(current => ({ ...current, qty }))}/><button className="primary" onClick={addPancakes}><span>Add to Cart</span><b>{money(pancakeTotal)}</b></button></div></div></div>}
 
