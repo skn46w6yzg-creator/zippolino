@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BUSINESS, MENU } from './menuConfig.js';
+import { createOrderId } from './order.js';
 import './styles.css';
 
 const money = value => `€${Number(value).toFixed(2)}`;
@@ -140,7 +141,7 @@ function App() {
     setOrderError('');
     const customer = Object.fromEntries(new FormData(event.currentTarget));
     // TODO: A payment-confirmation webhook must change this to "New" after verified payment.
-    const order = { id: `ZIP-${Date.now().toString().slice(-6)}`, createdAt: new Date().toISOString(), status: 'Pending payment', items: cart, total: subtotal, customer, pickupAddress: BUSINESS.address };
+    const order = { id: createOrderId(), createdAt: new Date().toISOString(), status: 'Pending payment', items: cart, total: subtotal, customer, pickupAddress: BUSINESS.address };
     const orders = JSON.parse(localStorage.getItem('zippolino-orders') || '[]');
     localStorage.setItem('zippolino-orders', JSON.stringify([order, ...orders]));
     track('purchase', { transaction_id: order.id, value: subtotal, currency: 'EUR' });
