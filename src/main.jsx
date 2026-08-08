@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BUSINESS, MENU } from './menuConfig.js';
-import { createOrderId } from './order.js';
+import { canPrepareOrder, createOrderId, PENDING_PAYMENT_STATUS } from './order.js';
 import { ANALYTICS_CONSENT_KEY, track } from './analytics.js';
 import './styles.css';
 
@@ -146,7 +146,7 @@ function App() {
     setOrderError('');
     const customer = Object.fromEntries(new FormData(event.currentTarget));
     // TODO: A payment-confirmation webhook must change this to "New" after verified payment.
-    const order = { id: createOrderId(), createdAt: new Date().toISOString(), status: 'Pending payment', items: cart, total: subtotal, customer, pickupAddress: BUSINESS.address };
+    const order = { id: createOrderId(), createdAt: new Date().toISOString(), status: PENDING_PAYMENT_STATUS, items: cart, total: subtotal, customer, pickupAddress: BUSINESS.address };
     const orders = JSON.parse(localStorage.getItem('zippolino-orders') || '[]');
     localStorage.setItem('zippolino-orders', JSON.stringify([order, ...orders]));
     track('purchase', { transaction_id: order.id, value: subtotal, currency: 'EUR' });
@@ -218,7 +218,7 @@ function OrdersGate() {
 function Orders() {
   const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('zippolino-orders') || '[]'));
   const update = (id, status) => { const next = orders.map(order => order.id === id ? { ...order, status } : order); setOrders(next); localStorage.setItem('zippolino-orders', JSON.stringify(next)); };
-  return <div className="admin"><header><a className="brand" href="#top"><span>Z</span>ZIPPOLINO</a><b>ORDER DESK</b><a href="#top">← Storefront</a></header><main><div className="section-head"><div><p className="eyebrow">KITCHEN VIEW</p><h1>Orders</h1></div><p>{orders.length} total · This device only until the live database is connected.</p></div>{orders.length === 0 ? <div className="empty-admin"><h2>No orders yet.</h2><p>Place a test order from the storefront and it will appear here.</p><a className="primary" href="#top">Open storefront</a></div> : <div className="orders">{orders.map(order => <article key={order.id}><div><small>{new Date(order.createdAt).toLocaleString()}</small><h2>{order.id}</h2><p>{order.customer.name} · {order.customer.pickup}</p><p>{order.pickupAddress}</p></div><b className={`status ${order.status.toLowerCase().replace(' ', '-')}`}>{order.status}</b><ul>{order.items.map(item => <li key={item.key}>{item.qty} × {item.name}{item.details?.map(detail => <span key={detail}>{detail}</span>)}{item.breakdown?.filter(line => line.price > 0).map(line => <span key={line.label || line.name}>{line.label || line.name}: {money(line.price)}</span>)}{item.note && <span>Note: {item.note}</span>}</li>)}</ul><strong>{money(order.total)}</strong>{order.status === 'Pending payment' ? <p className="payment-warning">Do not prepare — payment not confirmed.</p> : <div className="actions">{['Accepted','Preparing','Ready','Completed'].map(status => <button onClick={() => update(order.id, status)} key={status}>{status}</button>)}</div>}</article>)}</div>}</main></div>;
+  return <div className="admin"><header><a className="brand" href="#top"><span>Z</span>ZIPPOLINO</a><b>ORDER DESK</b><a href="#top">← Storefront</a></header><main><div className="section-head"><div><p className="eyebrow">KITCHEN VIEW</p><h1>Orders</h1></div><p>{orders.length} total · This device only until the live database is connected.</p></div>{orders.length === 0 ? <div className="empty-admin"><h2>No orders yet.</h2><p>Place a test order from the storefront and it will appear here.</p><a className="primary" href="#top">Open storefront</a></div> : <div className="orders">{orders.map(order => <article key={order.id}><div><small>{new Date(order.createdAt).toLocaleString()}</small><h2>{order.id}</h2><p>{order.customer.name} · {order.customer.pickup}</p><p>{order.pickupAddress}</p></div><b className={`status ${order.status.toLowerCase().replace(' ', '-')}`}>{order.status}</b><ul>{order.items.map(item => <li key={item.key}>{item.qty} × {item.name}{item.details?.map(detail => <span key={detail}>{detail}</span>)}{item.breakdown?.filter(line => line.price > 0).map(line => <span key={line.label || line.name}>{line.label || line.name}: {money(line.price)}</span>)}{item.note && <span>Note: {item.note}</span>}</li>)}</ul><strong>{money(order.total)}</strong>{!canPrepareOrder(order) ? <p className="payment-warning">Do not prepare — payment not confirmed.</p> : <div className="actions">{['Accepted','Preparing','Ready','Completed'].map(status => <button onClick={() => update(order.id, status)} key={status}>{status}</button>)}</div>}</article>)}</div>}</main></div>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
