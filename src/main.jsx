@@ -11,6 +11,10 @@ const totalCart = cart => cart.reduce((sum, item) => sum + item.unit * item.qty,
 const Brand = () => <img className="brand-logo" src="/assets/zippolino-crowned-logo.png" alt="ZIPPOLINO"/>;
 
 function App() {
+  return <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#090806', color: '#d7ad5b' }}><h1 style={{ margin: 0, fontFamily: "'Playfair Display', serif", fontSize: 'clamp(56px, 10vw, 140px)' }}>Coming Soon</h1></main>;
+}
+
+function Storefront() {
   const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem('zippolino-cart') || '[]'));
   const [product, setProduct] = useState(null);
   const [choice, setChoice] = useState({ size: 1, sauces: [], extras: [], qty: 1, note: '' });
